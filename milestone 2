@@ -1,0 +1,259 @@
+import warnings
+import numpy as np
+import pandas as pd
+import scipy.stats as st
+import statsmodels.api as sm
+from scipy.stats._continuous_distns import _distn_names
+import matplotlib
+from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+
+
+
+
+
+
+
+df = pd.read_csv(r'C:\Users\Dell\OneDrive\Desktop\random(netw 504)/UNR-IDD.csv')
+train,test=train_test_split(df, test_size=0.2, train_size=0.8)
+
+column_headers = list(df.columns.values)
+#coloumns that i exluded :
+
+print(train[column_headers[7]].unique())
+print(train[column_headers[8]].unique())
+print(train[column_headers[9]].unique())
+print(train[column_headers[10]].unique())
+print(train[column_headers[16]].unique())
+print(train[column_headers[17]].unique())
+print(train[column_headers[18]].unique())
+print(train[column_headers[19]].unique())
+print(train[column_headers[26]].unique()) 
+print(train[column_headers[27]].unique())
+print(train[column_headers[31]].unique())    
+
+def best_fit_distribution(data, bins=200, ax=None):
+    """Model data by finding best fit distribution to data"""
+    # Get histogram of original data
+    y, x = np.histogram(data, bins=bins, density=True)
+    x = (x + np.roll(x, -1))[:-1] / 2.0
+
+    # Best holders
+    best_distributions = []
+
+    # Estimate distribution parameters from data
+    for ii, distribution in enumerate([d for d in _distn_names if not d in ['levy_stable', 'studentized_range']]):
+
+        print("{:>3} / {:<3}: {}".format( ii+1, len(_distn_names), distribution ))
+
+        distribution = getattr(st, distribution)
+
+        # Try to fit the distribution
+        try:
+            # Ignore warnings from data that can't be fit
+            with warnings.catch_warnings():
+                warnings.filterwarnings('ignore')
+                
+                # fit dist to data
+                params = distribution.fit(data)
+
+                # Separate parts of parameters
+                arg = params[:-2]
+                loc = params[-2]
+                scale = params[-1]
+                
+                # Calculate fitted PDF and error with fit in distribution
+                pdf = distribution.pdf(x, loc=loc, scale=scale, *arg)
+                sse = np.sum(np.power(y - pdf, 2.0))
+                
+                # if axis pass in add to plot
+                try:
+                    if ax:
+                        pd.Series(pdf, x).plot(ax=ax)
+                    
+                except Exception:
+                    pass
+
+                # identify if this distribution is better
+                best_distributions.append((distribution, params, sse))
+        
+        except Exception:
+            pass
+
+    
+    return sorted(best_distributions, key=lambda x:x[2])
+
+def make_pdf(dist, params, data):
+    """Generate distributions's Probability Distribution Function """
+
+    # Separate parts of parameters
+    arg = params[:-2]
+    loc = params[-2]
+    scale = params[-1]
+
+    # Get sane start and end points of distribution
+  
+    # Build PDF and turn into pandas Series
+    #x = np.linspace(start, end, size)
+    y = dist.pdf(data, loc=loc, scale=scale, *arg)
+  
+
+    return y
+def pmfpro(data,proab):
+    i=0
+    y=np.zeros(len(data))
+    while i<len(data):
+        
+        y[i]=proab[data[i]]
+        i=i+1
+    return y
+# proabilities no condition:
+
+pro= pd.DataFrame()
+# Load data from statsmodels datasets
+
+i=2
+while i<len(column_headers)-2:
+  
+  
+  if(i==0 or i==1 or i==7 or i==8 or i==9 or i==10 or i==16 or i==17 or i==18 or i==19 or i==26 or i==27 or i==31):
+      i=i+1
+  if(i==32 or i==33):
+      break  
+  
+  data =train[column_headers[i]]
+
+  
+  ax = data.plot(kind='hist', bins=50, density=True, alpha=0.5, color=list(matplotlib.rcParams['axes.prop_cycle'])[1]['color'])
+
+
+  
+
+# Find best fit distribution
+  best_distibutions = best_fit_distribution(data, 200, ax)
+  best_dist = best_distibutions[0]
+
+
+# Make PDF with best params 
+  proab = make_pdf(best_dist[0], best_dist[1],test[column_headers[i]])
+  pro[column_headers[i]]=proab
+  i=i+1
+ 
+# Display
+pmf1=train[column_headers[0]].value_counts().sort_index()/len(train[column_headers[0]])
+z=test[column_headers[0]].tolist()
+x= pmfpro(z,pmf1)
+pro[column_headers[0]]=x
+
+pmf1=train[column_headers[1]].value_counts().sort_index()/len(train[column_headers[1]])
+z=test[column_headers[1]].tolist()
+x= pmfpro(z,pmf1)
+pro[column_headers[1]]=x
+
+
+
+##############################################################
+#proabilities condtion
+givpro= pd.DataFrame()
+types = df.Label.unique()
+givtrain= train[train['Label']==types[0]]
+i=2
+while i<len(column_headers)-2:
+  
+  
+  if(i==0 or i==1 or i==7 or i==8 or i==9 or i==10 or i==16 or i==17 or i==18 or i==19 or i==26 or i==27 or i==31):
+      i=i+1
+  if(i==32 or i==33):
+      break  
+ 
+  data =givtrain[column_headers[i]]
+
+# Plot for comparison
+  
+  ax = data.plot(kind='hist', bins=50, density=True, alpha=0.5, color=list(matplotlib.rcParams['axes.prop_cycle'])[1]['color'])
+
+# Save plot limits
+ 
+
+# Find best fit distribution
+  best_distibutions = best_fit_distribution(data, 200, ax)
+  best_dist = best_distibutions[0]
+
+# Update plots
+
+# Make PDF with best params 
+  proab = make_pdf(best_dist[0], best_dist[1],test[column_headers[i]])
+  givpro[column_headers[i]]=proab
+  i=i+1
+ 
+# Display
+pmf1=givtrain[column_headers[0]].value_counts().sort_index()/len(givtrain[column_headers[0]])
+z=test[column_headers[0]].tolist()
+x= pmfpro(z,pmf1)
+givpro[column_headers[0]]=x
+
+pmf1=givtrain[column_headers[1]].value_counts().sort_index()/len(givtrain[column_headers[1]])
+z=test[column_headers[1]].tolist()
+x= pmfpro(z,pmf1)
+
+givpro[column_headers[1]]=x
+
+#dom calc
+v=pro.prod(1).tolist()
+#num calc
+b =givpro.prod(1).tolist()
+bayes=np.zeros(len(v))
+i=0
+#attack proability
+pmf1=train[column_headers[32]].value_counts().sort_index()/len(train[column_headers[32]])
+attproa=pmf1[types[0]]
+while i<len(v):
+    if(b[i]==float('NaN') or v[i]==float('NaN') or b[i]==np.Inf or v[i]==np.Inf):
+        bayes[i]=float('NaN')
+        
+    elif(b[i]==0 and v[i]>0):
+        bayes[i]=0
+    elif(b[i]>0 and v[i]==0):
+        bayes[i]=float('NaN')            ##### b ########
+                                        ####  ____ ##########
+    elif(b[i]==0 and v[i]==0):           ##### v    #########
+        bayes[i]=float('NaN')
+    
+    
+    elif(b[i]!=0 and v[i]!=0):
+        bayes[i]=(b[i]/v[i])*attproa
+    else:
+        bayes[i]=float('NaN')
+        
+    
+    i=i+1
+
+
+
+
+#acc
+
+realattacktype= test[column_headers[32]].tolist()
+allval=len(realattacktype)
+correctvalues=0
+i=0
+true_postive=0
+false_positive=0
+false_negative=0
+true_negative=0 
+while i<allval:
+    if(bayes[i]>=0.5 and realattacktype[i]==types[0]):
+        correctvalues=correctvalues+1
+        true_postive= true_postive+1
+    
+    if(bayes[i]<0.5 and realattacktype[i]!=types[0]):
+        correctvalues=correctvalues+1
+        true_negative=true_negative+1
+    
+    if(bayes[i]<0.5 and realattacktype[i]==types[0]):
+       false_negative=false_negative+1
+   
+    if(bayes[i]>0.5 and realattacktype[i]!=types[0]):
+        false_positive=false_positive+1
+    i=i+1
+accuracy=correctvalues/allval
